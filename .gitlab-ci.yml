@@ -1,0 +1,24 @@
+image: ebits/openshift-client
+
+stages:
+  - deploy
+
+deploy-ci:
+  stage: deploy
+  only:
+    - master
+  environment:
+    name: ci
+  before_script:
+    - oc login "$OPENSHIFT_SERVER" --token="$OPENSHIFT_TOKEN" --insecure-skip-tls-verify
+  script:
+    # build image s2i docker-build
+    - oc start-build fabric-ca --wait --follow --insecure-skip-tls-verify -n $OPENSHIFT_PROJECT
+    # wait for other rollouts
+    - set +e # do not exit in case of an error
+    - echo "wait until other rollouts are finished (e.g. triggered by an other pipeline)"
+    - oc rollout status dc/fabric-ca --insecure-skip-tls-verify -n $OPENSHIFT_PROJECT
+    - set -e # exit in case of an error
+    # rollout
+    - oc rollout latest dc/fabric-ca --insecure-skip-tls-verify -n $OPENSHIFT_PROJECT
+    - oc rollout status dc/fabric-ca --insecure-skip-tls-verify -n $OPENSHIFT_PROJECT
